@@ -1,16 +1,19 @@
 from django.shortcuts import render
 from rest_framework import  viewsets, generics, status
 from rest_framework.response import Response
-from rest_framework.decorators import action
-from datetime import datetime, timedelta, date
-
+from django.utils import timezone
+from datetime import timedelta
+from django.utils.timezone import get_current_timezone
+import pytz
 # Create your views here.
 from .models import * 
 from .serializer import *
 
+
 class ItemList(viewsets.ModelViewSet):
     queryset = Items.objects.all()
     serializer_class = ItemSerializer
+
 
 class ShipmentList(viewsets.ModelViewSet):
     queryset = Shipment.objects.all()
@@ -29,10 +32,13 @@ class ShipmentList(viewsets.ModelViewSet):
         _shipment = Shipment.objects.get(order_id=order_id)
         try:
             if request.data["fast_delivery"]:
-                _shipment.expected_delivery = date.today()+timedelta(1)
+                _shipment.expected_delivery = timezone.now() + timedelta(hours=24)
                 _shipment.shipping_charge = 10
+            else:
+                _shipment.expected_delivery = timezone.now() + timedelta(hours=240)
+                _shipment.shipping_charge = 0
         except KeyError:
-            _shipment.expected_delivery = date.today()+timedelta(10)
+            _shipment.expected_delivery = timezone.now() + timedelta(hours=240)
             _shipment.shipping_charge = 0
         _shipment.save()
         item = Items.objects.get(item_id=item_id)
@@ -41,7 +47,7 @@ class ShipmentList(viewsets.ModelViewSet):
         else:
             item.quantity = item.quantity-quantity  # change field
             item.save()
-            return Response({"Order Id" : order_id,
+            return Response({"Order Id": order_id,
                             "Tracking Id": tracking_id,
                             "expected_delivery":_shipment.expected_delivery,
                             "shipping_charge": _shipment.shipping_charge,
